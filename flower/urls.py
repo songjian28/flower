@@ -2,7 +2,7 @@ import os
 
 from tornado.web import StaticFileHandler, url
 
-from .api import events
+# from .api import events
 from .api import control
 from .api import tasks
 from .api import workers
@@ -58,14 +58,14 @@ handlers = [
     (r"/api/task/rate-limit/(.+)", control.TaskRateLimit),
     (r"/api/task/revoke/(.+)", control.TaskRevoke),
     # Events WebSocket API
-    (r"/api/task/events/task-sent/(.*)", events.TaskSent),
-    (r"/api/task/events/task-received/(.*)", events.TaskReceived),
-    (r"/api/task/events/task-started/(.*)", events.TaskStarted),
-    (r"/api/task/events/task-succeeded/(.*)", events.TaskSucceeded),
-    (r"/api/task/events/task-failed/(.*)", events.TaskFailed),
-    (r"/api/task/events/task-revoked/(.*)", events.TaskRevoked),
-    (r"/api/task/events/task-retried/(.*)", events.TaskRetried),
-    (r"/api/task/events/task-custom/(.*)", events.TaskCustom),
+    # (r"/api/task/events/task-sent/(.*)", events.TaskSent),
+    # (r"/api/task/events/task-received/(.*)", events.TaskReceived),
+    # (r"/api/task/events/task-started/(.*)", events.TaskStarted),
+    # (r"/api/task/events/task-succeeded/(.*)", events.TaskSucceeded),
+    # (r"/api/task/events/task-failed/(.*)", events.TaskFailed),
+    # (r"/api/task/events/task-revoked/(.*)", events.TaskRevoked),
+    # (r"/api/task/events/task-retried/(.*)", events.TaskRetried),
+    # (r"/api/task/events/task-custom/(.*)", events.TaskCustom),
     # Metrics
     (r"/metrics", monitor.Metrics),
     (r"/healthcheck", monitor.Healthcheck),

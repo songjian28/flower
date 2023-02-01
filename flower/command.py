@@ -18,7 +18,7 @@ from .app import Flower
 from .urls import settings
 from .utils import abs_path, prepend_url
 from .options import DEFAULT_CONFIG_FILE, default_options
-
+from .views.auth import validate_auth_option
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class FlowerCommand(Command):
         self.extract_settings()
         self.setup_logging()
 
-        self.app.loader.import_default_modules()
+        # self.app.loader.import_default_modules()
         flower = Flower(capp=self.app, options=options, **settings)
         atexit.register(flower.stop)
 
@@ -111,6 +111,10 @@ class FlowerCommand(Command):
             if options.ca_certs:
                 settings['ssl_options']['ca_certs'] = abs_path(options.ca_certs)
 
+        if options.auth and not validate_auth_option(options.auth):
+            logger.error("Invalid '--auth' option: %s", options.auth)
+            sys.exit(1)
+
     def early_version(self, argv):
         if '--version' in argv:
             if '--debug' in argv:
@@ -132,9 +136,14 @@ class FlowerCommand(Command):
 
     def print_banner(self, ssl):
         if not options.unix_socket:
+            if options.url_prefix:
+                prefix_str = f'/{options.url_prefix}/'
+            else:
+                prefix_str = ''
             logger.info(
                 "Visit me at http%s://%s:%s", 's' if ssl else '',
-                options.address or 'localhost', options.port
+                options.address or 'localhost', options.port,
+                prefix_str
             )
         else:
             logger.info("Visit me via unix socket file: %s", options.unix_socket)
@@ -145,3 +154,23 @@ class FlowerCommand(Command):
             pformat(sorted(self.app.tasks.keys()))
         )
         logger.debug('Settings: %s', pformat(settings))
+        if not (options.basic_auth or options.auth):
+            logger.warning('Running without authentication')
+
+
+def warn_about_celery_args_used_in_flower_command(ctx, flower_args):
+    celery_options = [option for param in ctx.parent.command.params for option in param.opts]
+
+    incorrectly_used_args = []
+    for arg in flower_args:
+        arg_name, _, _ = arg.partition("=")
+        if arg_name in celery_options:
+            incorrectly_used_args.append(arg_name)
+
+    if incorrectly_used_args:
+        logger.warning(
+            f'You have incorrectly specified the following celery arguments after flower command:'
+            f' {incorrectly_used_args}. '
+            f'Please specify them after celery command instead following this template: '
+            f'celery [celery args] flower [flower args].'
+        )

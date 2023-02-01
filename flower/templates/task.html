@@ -69,7 +69,7 @@
                 <tr>
                   <td>{{ humanize(name) }}</td>
                   <td>
-                    {% if name in ['sent', 'received', 'started', 'succeeded', 'retried', 'timestamp', 'failed'] %}
+                    {% if name in ['sent', 'received', 'started', 'succeeded', 'retried', 'timestamp', 'failed', 'revoked'] %}
                     {{ humanize(getattr(task, name, None), type='time') }}
                     {% elif name == 'worker' %}
                     <a
@@ -79,6 +79,11 @@
                     {% elif name in ['parent_id', 'root_id'] %}
                     <a
                         href="{{ reverse_url('task', getattr(task, name, None)) }}">{{ getattr(task, name, None) }}</a>
+                    {% elif name == 'children' %}
+                      {% for child in getattr(task, name, {}) %}
+                        <a href="{{ reverse_url('task', child.id) }}">{{ child.id }}</a>
+                        <br>
+                      {% end %}
                     {% else %}
                       {{ getattr(task, name, None) }}
                     {% end %}

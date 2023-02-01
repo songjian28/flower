@@ -45,7 +45,7 @@ class RabbitMQ(BrokerBase):
 
         self.host = self.host or 'localhost'
         self.port = self.port or 15672
-        self.vhost = quote(self.vhost, '') or '/'
+        self.vhost = quote(self.vhost, '') or '/' if self.vhost != '/' else self.vhost
         self.username = self.username or 'guest'
         self.password = self.password or 'guest'
 
@@ -73,6 +73,7 @@ class RabbitMQ(BrokerBase):
         try:
             response = yield http_client.fetch(
                 url, auth_username=username, auth_password=password,
+                connect_timeout=1.0, request_timeout=2.0,
                 validate_cert=False)
         except (socket.error, httpclient.HTTPError) as e:
             logger.error("RabbitMQ management API call failed: %s", e)
@@ -99,13 +100,16 @@ class RedisBase(BrokerBase):
 
     def __init__(self, broker_url, *args, **kwargs):
         super(RedisBase, self).__init__(broker_url)
+        self.redis = None
 
         if not redis:
             raise ImportError('redis library is required')
 
         broker_options = kwargs.get('broker_options', {})
-        self.priority_steps = broker_options.get('priority_steps', self.DEFAULT_PRIORITY_STEPS)
+        self.priority_steps = broker_options.get(
+            'priority_steps', self.DEFAULT_PRIORITY_STEPS)
         self.sep = broker_options.get('sep', self.DEFAULT_SEP)
+        self.broker_prefix = broker_options.get('global_keyprefix', '')
 
     def _q_for_pri(self, queue, pri):
         if pri not in self.priority_steps:
@@ -116,7 +120,8 @@ class RedisBase(BrokerBase):
     def queues(self, names):
         queue_stats = []
         for name in names:
-            priority_names = [self._q_for_pri(name, pri) for pri in self.priority_steps]
+            priority_names = [self.broker_prefix + self._q_for_pri(
+                name, pri) for pri in self.priority_steps]
             queue_stats.append({
                 'name': name,
                 'messages': sum([self.redis.llen(x) for x in priority_names])
@@ -164,7 +169,7 @@ class RedisSentinel(RedisBase):
         self.port = self.port or 26379
         self.vhost = self._prepare_virtual_host(self.vhost)
         self.master_name = self._prepare_master_name(broker_options)
-        self.redis = self._get_redis_client()
+        self.redis = self._get_redis_client(broker_options)
 
     def _prepare_virtual_host(self, vhost):
         if not isinstance(vhost, numbers.Integral):
@@ -187,13 +192,17 @@ class RedisSentinel(RedisBase):
         except KeyError:
             raise ValueError(
                 'master_name is required for Sentinel broker'
-                )
+            )
         return master_name
 
-    def _get_redis_client(self):
-        connection_kwargs = {'password': self.password}
+    def _get_redis_client(self, broker_options):
+        connection_kwargs = {
+            'password': self.password,
+            'sentinel_kwargs': broker_options.get('sentinel_kwargs')
+        }
         # TODO: get all sentinel hosts from Celery App config and use them to initialize Sentinel
-        sentinel = redis.sentinel.Sentinel([(self.host, self.port)], **connection_kwargs)
+        sentinel = redis.sentinel.Sentinel(
+            [(self.host, self.port)], **connection_kwargs)
         redis_client = sentinel.master_for(self.master_name)
         return redis_client
 
@@ -222,7 +231,8 @@ class RedisSsl(Redis):
     def _get_redis_client_args(self):
         client_args = super(RedisSsl, self)._get_redis_client_args()
         client_args['ssl'] = True
-        client_args.update(self.broker_use_ssl)
+        if isinstance(self.broker_use_ssl, dict):
+            client_args.update(self.broker_use_ssl)
         return client_args
 
 
@@ -241,6 +251,9 @@ class Broker(object):
             return RedisSentinel(broker_url, *args, **kwargs)
         else:
             raise NotImplementedError
+
+    def queues(self, names):
+        raise NotImplementedError
 
 
 @gen.coroutine
