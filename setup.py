@@ -43,9 +43,9 @@ classifiers = [s.strip() for s in classes.split('\n') if s]
 
 
 setup(
-    name='flower',
+    name='flower-custom',
     version=get_package_version(),
-    description='Celery Flower',
+    description='Base Celery Flower 0.9 And Latest Commit',
     long_description=open('README.rst').read(),
     author='Mher Movsisyan',
     author_email='mher.movsisyan@gmail.com',
