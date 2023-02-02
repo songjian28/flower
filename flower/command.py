@@ -85,8 +85,9 @@ class FlowerCommand(Command):
             options.logging = 'debug'
             enable_pretty_logging()
         else:
-            logging.getLogger("tornado.access").addHandler(NullHandler())
-            logging.getLogger("tornado.access").propagate = False
+            enable_pretty_logging()
+            # logging.getLogger("tornado.access").addHandler(NullHandler())
+            # logging.getLogger("tornado.access").propagate = False
 
     def extract_settings(self):
         settings['debug'] = options.debug
@@ -141,7 +142,7 @@ class FlowerCommand(Command):
             else:
                 prefix_str = ''
             logger.info(
-                "Visit me at http%s://%s:%s", 's' if ssl else '',
+                "Visit me at http%s://%s:%s%s", 's' if ssl else '',
                 options.address or 'localhost', options.port,
                 prefix_str
             )

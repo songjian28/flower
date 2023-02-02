@@ -72,6 +72,9 @@ define("url_prefix", type=str, help="base url prefix")
 define("task_runtime_metric_buckets", type=float, default=Histogram.DEFAULT_BUCKETS,
        multiple=True, help="histogram latency bucket value")
 
+define("task_log", default=False,
+       help="log task end info", type=bool)
+
 # deprecated options
 define("inspect", default=False, help="inspect workers", type=bool)
 

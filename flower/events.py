@@ -66,6 +66,7 @@ class EventsState(State):
     # EventsState object is created and accessed only from ioloop thread
 
     def __init__(self, *args, **kwargs):
+        self.task_log = kwargs.pop("task_log", False)
         super(EventsState, self).__init__(*args, **kwargs)
         self.counter = collections.defaultdict(Counter)
         self.metrics = get_prometheus_metrics()
@@ -103,6 +104,8 @@ class EventsState(State):
 
             if event_type in ['task-succeeded', 'task-failed'] and not task.eta and task_started and task_received:
                 self.metrics.prefetch_time.labels(worker_name, task_name).set(0)
+                if self.task_log:
+                    logger.info("task end info: %s", task.as_dict())
 
         if event_type == 'worker-online':
             self.metrics.worker_online.labels(worker_name).set(1)
@@ -117,6 +120,13 @@ class EventsState(State):
         if event_type == 'worker-offline':
             self.metrics.worker_online.labels(worker_name).set(0)
 
+    def update_new_state_conf(self, **kwargs):
+        """
+        更新新的state配置信息
+        """
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
 
 class Events(threading.Thread):
@@ -143,7 +153,8 @@ class Events(threading.Thread):
             if state:
                 self.state = state['events']
             state.close()
-
+            if self.state and kwargs: # 重置配置参数
+                self.state.update_new_state_conf(**kwargs)
             if state_save_interval:
                 self.state_save_timer = PeriodicCallback(self.save_state,
                                                          state_save_interval)
