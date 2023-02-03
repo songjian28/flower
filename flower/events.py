@@ -67,9 +67,9 @@ class EventsState(State):
 
     def __init__(self, *args, **kwargs):
         self.task_log = kwargs.pop("task_log", False)
+        self.counter = kwargs.pop("counter", False) or collections.defaultdict(Counter)
+        self.metrics = kwargs.pop("metrics", False) or get_prometheus_metrics()
         super(EventsState, self).__init__(*args, **kwargs)
-        self.counter = collections.defaultdict(Counter)
-        self.metrics = get_prometheus_metrics()
 
     def event(self, event):
         # Save the event
@@ -127,6 +127,10 @@ class EventsState(State):
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+
+    def __reduce__(self):
+        c, a = super(EventsState, self).__reduce__()
+        return self.__class__, a, {"task_log": self.task_log, "counter": self.counter}
 
 
 class Events(threading.Thread):
